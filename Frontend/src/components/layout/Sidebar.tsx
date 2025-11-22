@@ -38,11 +38,13 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
       <aside
         className={cn(
-          'fixed left-0 top-0 h-full bg-card border-r border-border transition-all duration-300 z-40 flex flex-col',
+          'fixed left-0 top-0 h-full bg-card border-r border-border transition-all duration-300 z-40 flex flex-col box-border',
           isOpen ? 'w-64' : 'w-16',
           // Mobile: hidden by default, slides in when open
-          '-translate-x-full lg:translate-x-0',
-          isOpen && 'translate-x-0'
+          // Desktop: always visible
+          isOpen 
+            ? 'translate-x-0' 
+            : '-translate-x-full lg:translate-x-0'
         )}
       >
       {/* Logo Section */}

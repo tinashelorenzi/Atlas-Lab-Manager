@@ -32,41 +32,41 @@ export function Navbar({ onMenuClick, sidebarOpen }: NavbarProps) {
   }
 
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center justify-between px-6 sticky top-0 z-30">
-      <div className="flex items-center gap-4">
+    <header className="h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 sticky top-0 z-30 overflow-hidden">
+      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
         <Button
           variant="ghost"
           size="icon"
           onClick={onMenuClick}
-          className="h-9 w-9"
+          className="h-9 w-9 flex-shrink-0"
         >
           <Menu className="h-5 w-5" />
         </Button>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0 ml-auto">
         {/* Notifications */}
-        <Button variant="ghost" size="icon" className="h-9 w-9 relative">
+        <Button variant="ghost" size="icon" className="h-9 w-9 relative flex-shrink-0">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full"></span>
         </Button>
 
         {/* User Info */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 text-sm">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
+        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+          <div className="flex items-center gap-2 text-sm flex-shrink-0">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
               <User className="h-4 w-4 text-primary" />
             </div>
             {user && (
-              <div className="hidden md:block">
-                <p className="text-sm font-medium text-foreground">{user.full_name}</p>
-                <p className="text-xs text-muted-foreground capitalize">
+              <div className="hidden md:block max-w-[200px]">
+                <p className="text-sm font-medium text-foreground truncate">{user.full_name}</p>
+                <p className="text-xs text-muted-foreground capitalize truncate">
                   {user.user_type.replace('_', ' ')}
                 </p>
               </div>
             )}
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout}>
+          <Button variant="outline" size="sm" onClick={handleLogout} className="flex-shrink-0">
             <LogOut className="mr-2 h-4 w-4" />
             <span className="hidden sm:inline">Logout</span>
           </Button>

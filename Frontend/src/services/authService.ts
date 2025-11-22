@@ -9,6 +9,7 @@ export interface LoginCredentials {
 export interface LoginResponse {
   access_token: string
   token_type: string
+  needs_password_reset?: boolean
 }
 
 export const authService = {
@@ -42,5 +43,16 @@ export const authService = {
   isAuthenticated(): boolean {
     return !!localStorage.getItem('access_token')
   },
+
+  async resetPassword(newPassword: string, confirmPassword: string): Promise<void> {
+    if (newPassword !== confirmPassword) {
+      throw new Error('Passwords do not match')
+    }
+    await api.post('/api/auth/reset-password', {
+      new_password: newPassword,
+      confirm_password: confirmPassword,
+    })
+  },
 }
 
+export default authService

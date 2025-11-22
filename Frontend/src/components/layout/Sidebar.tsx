@@ -29,7 +29,6 @@ const menuItems = [
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
   return (
     <>
-      {/* Mobile Overlay */}
       {isOpen && onClose && (
         <div
           className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 lg:hidden"
@@ -38,57 +37,54 @@ export function Sidebar({ isOpen, onClose }: SidebarProps) {
       )}
       <aside
         className={cn(
-          'fixed left-0 top-0 h-full bg-card border-r border-border transition-all duration-300 z-40 flex flex-col box-border',
+          'bg-card border-r border-border transition-all duration-300 z-40 flex flex-col h-full',
+          'fixed lg:static',
           isOpen ? 'w-64' : 'w-16',
-          // Mobile: hidden by default, slides in when open
-          // Desktop: always visible
           isOpen 
             ? 'translate-x-0' 
             : '-translate-x-full lg:translate-x-0'
         )}
       >
-      {/* Logo Section */}
-      <div className="h-16 border-b border-border flex items-center justify-center px-4">
-        {isOpen ? (
-          <div className="flex items-center gap-2">
+        <div className="h-16 border-b border-border flex items-center justify-center px-4">
+          {isOpen ? (
+            <div className="flex items-center gap-2">
+              <img src={logo} alt="Atlas" className="h-8 w-8" />
+              <span className="text-lg font-bold text-foreground">Atlas Lab</span>
+            </div>
+          ) : (
             <img src={logo} alt="Atlas" className="h-8 w-8" />
-            <span className="text-lg font-bold text-foreground">Atlas Lab</span>
-          </div>
-        ) : (
-          <img src={logo} alt="Atlas" className="h-8 w-8" />
-        )}
-      </div>
+          )}
+        </div>
 
-      {/* Navigation Items */}
-      <nav className="flex-1 overflow-y-auto py-4">
-        <ul className="space-y-1 px-2">
-          {menuItems.map((item) => {
-            const Icon = item.icon
-            return (
-              <li key={item.path}>
-                <NavLink
-                  to={item.path}
-                  className={({ isActive }) =>
-                    cn(
-                      'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
-                      'hover:bg-accent hover:text-accent-foreground',
-                      isActive
-                        ? 'bg-primary text-primary-foreground'
-                        : 'text-muted-foreground',
-                      !isOpen && 'justify-center'
-                    )
-                  }
-                >
-                  <Icon className="h-5 w-5 shrink-0" />
-                  {isOpen && <span>{item.label}</span>}
-                </NavLink>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
+        <nav className="flex-1 overflow-y-auto py-4">
+          <ul className="space-y-1 px-2">
+            {menuItems.map((item) => {
+              const Icon = item.icon
+              return (
+                <li key={item.path}>
+                  <NavLink
+                    to={item.path}
+                    end={item.path === '/dashboard'}
+                    className={({ isActive }) =>
+                      cn(
+                        'flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors',
+                        'hover:bg-accent hover:text-accent-foreground',
+                        isActive
+                          ? 'bg-primary text-primary-foreground'
+                          : 'text-muted-foreground',
+                        !isOpen && 'justify-center'
+                      )
+                    }
+                  >
+                    <Icon className="h-5 w-5 shrink-0" />
+                    {isOpen && <span>{item.label}</span>}
+                  </NavLink>
+                </li>
+              )
+            })}
+          </ul>
+        </nav>
       </aside>
     </>
   )
 }
-

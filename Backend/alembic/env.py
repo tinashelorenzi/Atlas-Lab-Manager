@@ -12,7 +12,10 @@ load_dotenv()
 
 # Import Base and models for autogenerate
 from database import Base
-from models.user import User  # Import all models here
+from models.user import User
+from models.customer import Customer
+from models.organization import Organization
+from models.integration import Integration
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

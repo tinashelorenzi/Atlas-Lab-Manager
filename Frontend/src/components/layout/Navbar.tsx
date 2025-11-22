@@ -7,10 +7,9 @@ import type { User as UserType } from '@/types/user'
 
 interface NavbarProps {
   onMenuClick: () => void
-  sidebarOpen: boolean
 }
 
-export function Navbar({ onMenuClick, sidebarOpen }: NavbarProps) {
+export function Navbar({ onMenuClick }: NavbarProps) {
   const navigate = useNavigate()
   const [user, setUser] = useState<UserType | null>(null)
 
@@ -32,47 +31,43 @@ export function Navbar({ onMenuClick, sidebarOpen }: NavbarProps) {
   }
 
   return (
-    <header className="h-16 border-b border-border bg-card flex items-center px-4 sm:px-6 sticky top-0 z-30 overflow-hidden">
-      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onMenuClick}
-          className="h-9 w-9 flex-shrink-0"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-      </div>
+    <header className="h-16 border-b border-border bg-card flex items-center px-4 sm:px-6">
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={onMenuClick}
+        className="h-9 w-9 mr-4"
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
 
-      <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0 ml-auto">
-        {/* Notifications */}
-        <Button variant="ghost" size="icon" className="h-9 w-9 relative flex-shrink-0">
+      <div className="flex-1"></div>
+
+      <div className="flex items-center gap-3">
+        <Button variant="ghost" size="icon" className="h-9 w-9 relative">
           <Bell className="h-5 w-5" />
           <span className="absolute top-1.5 right-1.5 h-2 w-2 bg-primary rounded-full"></span>
         </Button>
 
-        {/* User Info */}
-        <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-          <div className="flex items-center gap-2 text-sm flex-shrink-0">
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
+        {user && (
+          <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-md">
+            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center">
               <User className="h-4 w-4 text-primary" />
             </div>
-            {user && (
-              <div className="hidden md:block max-w-[200px]">
-                <p className="text-sm font-medium text-foreground truncate">{user.full_name}</p>
-                <p className="text-xs text-muted-foreground capitalize truncate">
-                  {user.user_type.replace('_', ' ')}
-                </p>
-              </div>
-            )}
+            <div className="max-w-[120px]">
+              <p className="text-sm font-medium text-foreground truncate">{user.full_name}</p>
+              <p className="text-xs text-muted-foreground capitalize truncate">
+                {user.user_type.replace('_', ' ')}
+              </p>
+            </div>
           </div>
-          <Button variant="outline" size="sm" onClick={handleLogout} className="flex-shrink-0">
-            <LogOut className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Logout</span>
-          </Button>
-        </div>
+        )}
+
+        <Button variant="outline" size="sm" onClick={handleLogout}>
+          <LogOut className="mr-2 h-4 w-4" />
+          <span className="hidden sm:inline">Logout</span>
+        </Button>
       </div>
     </header>
   )
 }
-

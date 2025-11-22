@@ -8,7 +8,8 @@ class UserBase(BaseModel):
     user_type: UserType
 
 class UserCreate(UserBase):
-    password: str
+    # Password is auto-generated, not required from client
+    pass
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -17,11 +18,16 @@ class UserLogin(BaseModel):
 class UserResponse(UserBase):
     id: int
     is_active: bool
+    needs_password_reset: bool
     created_at: datetime
     updated_at: datetime
     
     class Config:
         from_attributes = True
+
+class PasswordReset(BaseModel):
+    new_password: str
+    confirm_password: str
 
 class Token(BaseModel):
     access_token: str

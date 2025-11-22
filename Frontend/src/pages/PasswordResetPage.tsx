@@ -5,48 +5,38 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { authService } from '@/services/authService'
-import { LogIn, Loader2 } from 'lucide-react'
+import { Lock, Loader2 } from 'lucide-react'
 import logo from '@/assets/logo.svg'
 
-export function LoginPage() {
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+export function PasswordResetPage() {
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [shake, setShake] = useState(false)
   const navigate = useNavigate()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+
+    if (newPassword.length < 8) {
+      setError('Password must be at least 8 characters long')
+      return
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError('Passwords do not match')
+      return
+    }
+
     setIsLoading(true)
-    
+
     try {
-      const loginResponse = await authService.login({
-        username: email,
-        password: password,
-      })
-      
-      // Check if password reset is required
-      if (loginResponse.needs_password_reset) {
-        navigate('/password-reset')
-        return
-      }
-      
-      // Get user info to determine routing
-      const user = await authService.getCurrentUser()
-      
-      // Route based on user type
-      if (user.user_type === 'super_administrator') {
-        navigate('/super-admin')
-      } else {
-        navigate('/dashboard')
-      }
+      await authService.resetPassword(newPassword, confirmPassword)
+      // Redirect to dashboard after successful password reset
+      navigate('/dashboard')
     } catch (err: any) {
-      setError(err.response?.data?.detail || 'Invalid email or password')
-      // Trigger shake animation
-      setShake(true)
-      setTimeout(() => setShake(false), 500)
+      setError(err.response?.data?.detail || err.message || 'Failed to reset password. Please try again.')
     } finally {
       setIsLoading(false)
     }
@@ -54,17 +44,17 @@ export function LoginPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <Card className={`w-full max-w-md border-border transition-transform ${shake ? 'animate-shake' : ''}`}>
+      <Card className="w-full max-w-md border-border">
         <CardHeader className="space-y-4 text-center">
           <div className="flex justify-center">
             <img src={logo} alt="Atlas Lab Manager" className="h-20 w-20" />
           </div>
           <div className="space-y-1">
             <CardTitle className="text-3xl font-bold text-foreground">
-              Atlas Lab Manager
+              Set New Password
             </CardTitle>
             <CardDescription>
-              Sign in to access your laboratory management system
+              Please set a new password for your account
             </CardDescription>
           </div>
         </CardHeader>
@@ -76,29 +66,34 @@ export function LoginPage() {
               </div>
             )}
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="newPassword">New Password</Label>
               <Input
-                id="email"
-                type="email"
-                placeholder="your.email@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={isLoading}
-                autoComplete="email"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
+                id="newPassword"
                 type="password"
                 placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
                 required
                 disabled={isLoading}
-                autoComplete="current-password"
+                minLength={8}
+                autoComplete="new-password"
+              />
+              <p className="text-xs text-muted-foreground">
+                Password must be at least 8 characters long
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="confirmPassword">Confirm Password</Label>
+              <Input
+                id="confirmPassword"
+                type="password"
+                placeholder="••••••••"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                required
+                disabled={isLoading}
+                minLength={8}
+                autoComplete="new-password"
               />
             </div>
             <Button
@@ -109,12 +104,12 @@ export function LoginPage() {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Signing in...
+                  Setting password...
                 </>
               ) : (
                 <>
-                  <LogIn className="mr-2 h-4 w-4" />
-                  Sign In
+                  <Lock className="mr-2 h-4 w-4" />
+                  Set Password
                 </>
               )}
             </Button>

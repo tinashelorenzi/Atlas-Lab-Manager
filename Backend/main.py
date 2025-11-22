@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from routes import auth_router, users_router
+from routes.customers import router as customers_router
+from routes.settings import router as settings_router
+from routes.organization import router as organization_router
+from routes.email_templates import router as email_templates_router
 
 app = FastAPI(
     title="Atlas Lab Manager API",
@@ -20,6 +25,13 @@ app.add_middleware(
 # Include routers
 app.include_router(auth_router)
 app.include_router(users_router)
+app.include_router(customers_router)
+app.include_router(settings_router)
+app.include_router(organization_router)
+app.include_router(email_templates_router)
+
+# Serve uploaded files
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 @app.get("/")
 async def root():

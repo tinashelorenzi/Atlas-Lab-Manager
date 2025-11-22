@@ -4,8 +4,8 @@ from sqlalchemy.orm import Session
 from datetime import timedelta
 from database import get_db
 from models.user import User
-from schemas.user import UserLogin, Token, UserResponse
-from auth import verify_password, create_access_token, decode_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
+from schemas.user import UserLogin, Token, UserResponse, PasswordReset
+from auth import verify_password, create_access_token, decode_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_password_hash
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
@@ -31,7 +31,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
         raise HTTPException(status_code=400, detail="Inactive user")
     return user
 
-@router.post("/login", response_model=Token)
+@router.post("/login")
 async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     """Authenticate user and return JWT token"""
     user = db.query(User).filter(User.email == form_data.username).first()
@@ -49,10 +49,35 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = 
         data={"sub": user.email, "user_type": user.user_type.value},
         expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    
+    return {
+        "access_token": access_token,
+        "token_type": "bearer",
+        "needs_password_reset": user.needs_password_reset
+    }
 
 @router.get("/me", response_model=UserResponse)
 async def read_users_me(current_user: User = Depends(get_current_user)):
     """Get current user information"""
     return current_user
+
+@router.post("/reset-password")
+async def reset_password(
+    password_data: PasswordReset,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Reset password for user (required on first login)"""
+    if password_data.new_password != password_data.confirm_password:
+        raise HTTPException(status_code=400, detail="Passwords do not match")
+    
+    if len(password_data.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    
+    current_user.hashed_password = get_password_hash(password_data.new_password)
+    current_user.needs_password_reset = False
+    db.commit()
+    db.refresh(current_user)
+    
+    return {"message": "Password reset successfully"}
 

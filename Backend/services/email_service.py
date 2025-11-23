@@ -169,6 +169,43 @@ def send_customer_welcome_email(
     
     return send_email(to_email, subject, body, db)
 
+def send_sample_collection_email(
+    to_email: str,
+    customer_name: str,
+    sample_id: str,
+    sample_name: str,
+    collected_by: str,
+    collected_at: str,
+    db: Session
+) -> bool:
+    """Send sample collection confirmation email to customer"""
+    # Get organization name
+    from models.organization import Organization
+    org = db.query(Organization).first()
+    org_name = org.name if org else "Atlas Lab Manager"
+    
+    # Try to get template from database
+    template = get_email_template(db, 'sample_collection')
+    
+    if template:
+        # Replace placeholders in template
+        subject = template['subject'].replace('{{sample_id}}', sample_id)
+        subject = subject.replace('{{org_name}}', org_name)
+        body = template['body'].replace('{{customer_name}}', customer_name)
+        body = body.replace('{{sample_id}}', sample_id)
+        body = body.replace('{{sample_name}}', sample_name)
+        body = body.replace('{{collected_by}}', collected_by)
+        body = body.replace('{{collected_at}}', collected_at)
+        body = body.replace('{{org_name}}', org_name)
+    else:
+        # Default template
+        subject = f"Sample Collection Confirmation - {sample_id}"
+        body = get_default_sample_collection_template(
+            customer_name, sample_id, sample_name, collected_by, collected_at, org_name
+        )
+    
+    return send_email(to_email, subject, body, db)
+
 def get_default_user_welcome_template(full_name: str, email: str, temp_password: str, login_url: str) -> str:
     """Default styled template for user welcome email"""
     return f"""
@@ -382,6 +419,165 @@ def get_default_customer_welcome_template(full_name: str, customer_id: str, org_
                 <p>Our team is here to support you every step of the way. If you have any questions or need assistance, please don't hesitate to reach out to us.</p>
                 
                 <p>Once again, thank you for choosing <strong>{org_name}</strong>. We look forward to serving you!</p>
+            </div>
+            <div class="footer">
+                <p>This is an automated message from {org_name}. Please do not reply to this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+
+def get_default_sample_collection_template(
+    customer_name: str,
+    sample_id: str,
+    sample_name: str,
+    collected_by: str,
+    collected_at: str,
+    org_name: str
+) -> str:
+    """Default styled template for sample collection confirmation email"""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }}
+            .container {{
+                background-color: #ffffff;
+                border-radius: 8px;
+                padding: 40px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .header {{
+                text-align: center;
+                margin-bottom: 30px;
+                padding-bottom: 20px;
+                border-bottom: 2px solid #3b82f6;
+            }}
+            .header h1 {{
+                color: #1e40af;
+                margin: 0;
+                font-size: 28px;
+            }}
+            .content {{
+                margin: 30px 0;
+            }}
+            .confirmation-box {{
+                background-color: #eff6ff;
+                border-left: 4px solid #3b82f6;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 4px;
+            }}
+            .sample-details {{
+                background-color: #f8fafc;
+                border-left: 4px solid #3b82f6;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 4px;
+            }}
+            .sample-id {{
+                font-size: 24px;
+                font-weight: bold;
+                color: #1e40af;
+                letter-spacing: 2px;
+                font-family: 'Courier New', monospace;
+                margin: 10px 0;
+            }}
+            .detail-row {{
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 0;
+                border-bottom: 1px solid #e5e7eb;
+            }}
+            .detail-row:last-child {{
+                border-bottom: none;
+            }}
+            .detail-label {{
+                color: #6b7280;
+                font-weight: 500;
+            }}
+            .detail-value {{
+                color: #1f2937;
+                font-weight: 600;
+            }}
+            .success-icon {{
+                text-align: center;
+                margin: 20px 0;
+            }}
+            .success-icon svg {{
+                width: 64px;
+                height: 64px;
+                color: #10b981;
+            }}
+            .footer {{
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+                font-size: 14px;
+                color: #6b7280;
+                text-align: center;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Sample Collection Confirmation</h1>
+            </div>
+            <div class="content">
+                <p>Hello <strong>{customer_name}</strong>,</p>
+                
+                <div class="confirmation-box">
+                    <div class="success-icon">
+                        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <p style="text-align: center; margin: 0; font-size: 18px; color: #1e40af; font-weight: 600;">
+                        Your sample has been successfully collected!
+                    </p>
+                </div>
+                
+                <p>We are pleased to confirm that your sample has been received and recorded in our system. Below are the details:</p>
+                
+                <div class="sample-details">
+                    <div class="detail-row">
+                        <span class="detail-label">Sample ID:</span>
+                        <span class="detail-value sample-id">{sample_id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Sample Name:</span>
+                        <span class="detail-value">{sample_name}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Collected By:</span>
+                        <span class="detail-value">{collected_by}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Collection Date & Time:</span>
+                        <span class="detail-value">{collected_at}</span>
+                    </div>
+                </div>
+                
+                <p>Your sample is now in our system and will be processed according to the assigned test departments. You will receive updates as testing progresses.</p>
+                
+                <p>Please keep this Sample ID (<strong>{sample_id}</strong>) for your records and future reference.</p>
+                
+                <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
+                
+                <p>Thank you for choosing <strong>{org_name}</strong>!</p>
             </div>
             <div class="footer">
                 <p>This is an automated message from {org_name}. Please do not reply to this email.</p>

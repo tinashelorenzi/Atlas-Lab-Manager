@@ -16,6 +16,8 @@ class TestType(Base):
     
     # Relationship
     department = relationship("Department", back_populates="test_types")
+    # Many-to-many relationship with samples
+    samples = relationship("Sample", secondary="sample_tests", back_populates="test_types")
     
     def __repr__(self):
         return f"<TestType {self.name} (Department: {self.department_id})>"

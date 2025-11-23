@@ -15,6 +15,8 @@ class Department(Base):
     
     # Relationship to test types
     test_types = relationship("TestType", back_populates="department", cascade="all, delete-orphan")
+    # Many-to-many relationship with samples (defined in sample.py)
+    samples = relationship("Sample", secondary="sample_departments", back_populates="departments")
     
     def __repr__(self):
         return f"<Department {self.name}>"

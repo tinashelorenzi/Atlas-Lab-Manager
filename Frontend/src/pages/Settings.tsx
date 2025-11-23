@@ -14,9 +14,11 @@ import {
 } from '@/components/ui/dialog'
 import { settingsService, type Organization, type Integration, type UserCreate } from '@/services/settingsService'
 import { emailTemplateService, type EmailTemplate } from '@/services/emailTemplateService'
+import { departmentService, type Department, type DepartmentCreate, type TestType, type TestTypeCreate } from '@/services/departmentService'
+import { sampleTypeService, type SampleType, type SampleTypeCreate } from '@/services/sampleTypeService'
 import { authService } from '@/services/authService'
 import type { User } from '@/types/user'
-import { User as UserIcon, Building2, Plug, Users, Save, Plus, Trash2, Ban, CheckCircle, Upload, Globe, Clock, Phone, Mail, AlertCircle, CheckCircle2, XCircle, FileText } from 'lucide-react'
+import { User as UserIcon, Building2, Plug, Users, Save, Plus, Trash2, Ban, CheckCircle, Upload, Globe, Clock, Phone, Mail, AlertCircle, CheckCircle2, XCircle, FileText, TestTube, Layers, Edit } from 'lucide-react'
 import { LoadingMeter } from '@/components/ui/loading'
 import { Switch } from '@/components/ui/switch'
 
@@ -51,6 +53,31 @@ export function Settings() {
   const [templateFormData, setTemplateFormData] = useState<{ subject: string; body: string }>({
     subject: '',
     body: '',
+  })
+
+  // Departments
+  const [departments, setDepartments] = useState<Department[]>([])
+  const [showDepartmentModal, setShowDepartmentModal] = useState(false)
+  const [editingDepartment, setEditingDepartment] = useState<Department | null>(null)
+  const [departmentFormData, setDepartmentFormData] = useState<DepartmentCreate>({
+    name: '',
+    description: '',
+  })
+  const [selectedDepartmentForTestType, setSelectedDepartmentForTestType] = useState<Department | null>(null)
+  const [showTestTypeModal, setShowTestTypeModal] = useState(false)
+  const [editingTestType, setEditingTestType] = useState<TestType | null>(null)
+  const [testTypeFormData, setTestTypeFormData] = useState<TestTypeCreate>({
+    name: '',
+    description: '',
+  })
+
+  // Sample Types
+  const [sampleTypes, setSampleTypes] = useState<SampleType[]>([])
+  const [showSampleTypeModal, setShowSampleTypeModal] = useState(false)
+  const [editingSampleType, setEditingSampleType] = useState<SampleType | null>(null)
+  const [sampleTypeFormData, setSampleTypeFormData] = useState<SampleTypeCreate>({
+    name: '',
+    description: '',
   })
 
   // Dialog states
@@ -120,6 +147,20 @@ export function Settings() {
           setEmailTemplates(templates)
         } catch (error) {
           console.error('Failed to load email templates:', error)
+        }
+
+        try {
+          const depts = await departmentService.getAll()
+          setDepartments(depts)
+        } catch (error) {
+          console.error('Failed to load departments:', error)
+        }
+
+        try {
+          const sts = await sampleTypeService.getAll()
+          setSampleTypes(sts)
+        } catch (error) {
+          console.error('Failed to load sample types:', error)
         }
       }
     } catch (error) {
@@ -326,6 +367,177 @@ export function Settings() {
     }
   }
 
+  // Department handlers
+  const handleOpenDepartmentModal = async (dept?: Department) => {
+    if (dept) {
+      // Reload department with test types
+      try {
+        const departments = await departmentService.getAll()
+        const fullDept = departments.find(d => d.id === dept.id)
+        if (fullDept) {
+          setEditingDepartment(fullDept)
+          setDepartmentFormData({ name: fullDept.name, description: fullDept.description || '' })
+        } else {
+          setEditingDepartment(dept)
+          setDepartmentFormData({ name: dept.name, description: dept.description || '' })
+        }
+      } catch (error) {
+        setEditingDepartment(dept)
+        setDepartmentFormData({ name: dept.name, description: dept.description || '' })
+      }
+    } else {
+      setEditingDepartment(null)
+      setDepartmentFormData({ name: '', description: '' })
+    }
+    setShowDepartmentModal(true)
+  }
+
+  const handleSaveDepartment = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      if (editingDepartment) {
+        await departmentService.update(editingDepartment.id, departmentFormData)
+        showSuccessDialog('Department updated successfully!')
+      } else {
+        await departmentService.create(departmentFormData)
+        showSuccessDialog('Department created successfully!')
+      }
+      await loadData()
+      setShowDepartmentModal(false)
+      setEditingDepartment(null)
+      setDepartmentFormData({ name: '', description: '' })
+    } catch (error: any) {
+      showErrorDialog(error.response?.data?.detail || 'Failed to save department.')
+    }
+  }
+
+  const handleDeleteDepartment = (id: number, name: string) => {
+    showConfirmDialog(
+      'Confirm Deletion',
+      `Are you sure you want to delete department "${name}"?`,
+      async () => {
+        try {
+          await departmentService.delete(id)
+          await loadData()
+          showSuccessDialog(`Department "${name}" deleted successfully.`)
+        } catch (error: any) {
+          showErrorDialog(error.response?.data?.detail || 'Failed to delete department.')
+        } finally {
+          setDialogState({ open: false, type: null, title: '', message: '' })
+        }
+      }
+    )
+  }
+
+  // Test Type handlers
+  const handleOpenTestTypeModal = (dept: Department, testType?: TestType) => {
+    setSelectedDepartmentForTestType(dept)
+    if (testType) {
+      setEditingTestType(testType)
+      setTestTypeFormData({ name: testType.name, description: testType.description || '' })
+    } else {
+      setEditingTestType(null)
+      setTestTypeFormData({ name: '', description: '' })
+    }
+    setShowTestTypeModal(true)
+  }
+
+  const handleSaveTestType = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!selectedDepartmentForTestType) return
+    try {
+      if (editingTestType) {
+        await departmentService.updateTestType(selectedDepartmentForTestType.id, editingTestType.id, testTypeFormData)
+        showSuccessDialog('Test type updated successfully!')
+      } else {
+        await departmentService.createTestType(selectedDepartmentForTestType.id, testTypeFormData)
+        showSuccessDialog('Test type created successfully!')
+      }
+      await loadData()
+      // Reload the editing department if it exists
+      if (editingDepartment && selectedDepartmentForTestType.id === editingDepartment.id) {
+        const departments = await departmentService.getAll()
+        const updated = departments.find(d => d.id === editingDepartment.id)
+        if (updated) {
+          setEditingDepartment(updated)
+        }
+      }
+      setShowTestTypeModal(false)
+      setEditingTestType(null)
+      setSelectedDepartmentForTestType(null)
+      setTestTypeFormData({ name: '', description: '' })
+    } catch (error: any) {
+      showErrorDialog(error.response?.data?.detail || 'Failed to save test type.')
+    }
+  }
+
+  const handleDeleteTestType = (deptId: number, testTypeId: number, name: string) => {
+    showConfirmDialog(
+      'Confirm Deletion',
+      `Are you sure you want to delete test type "${name}"?`,
+      async () => {
+        try {
+          await departmentService.deleteTestType(deptId, testTypeId)
+          await loadData()
+          showSuccessDialog(`Test type "${name}" deleted successfully.`)
+        } catch (error: any) {
+          showErrorDialog(error.response?.data?.detail || 'Failed to delete test type.')
+        } finally {
+          setDialogState({ open: false, type: null, title: '', message: '' })
+        }
+      }
+    )
+  }
+
+  // Sample Type handlers
+  const handleOpenSampleTypeModal = (sampleType?: SampleType) => {
+    if (sampleType) {
+      setEditingSampleType(sampleType)
+      setSampleTypeFormData({ name: sampleType.name, description: sampleType.description || '' })
+    } else {
+      setEditingSampleType(null)
+      setSampleTypeFormData({ name: '', description: '' })
+    }
+    setShowSampleTypeModal(true)
+  }
+
+  const handleSaveSampleType = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      if (editingSampleType) {
+        await sampleTypeService.update(editingSampleType.id, sampleTypeFormData)
+        showSuccessDialog('Sample type updated successfully!')
+      } else {
+        await sampleTypeService.create(sampleTypeFormData)
+        showSuccessDialog('Sample type created successfully!')
+      }
+      await loadData()
+      setShowSampleTypeModal(false)
+      setEditingSampleType(null)
+      setSampleTypeFormData({ name: '', description: '' })
+    } catch (error: any) {
+      showErrorDialog(error.response?.data?.detail || 'Failed to save sample type.')
+    }
+  }
+
+  const handleDeleteSampleType = (id: number, name: string) => {
+    showConfirmDialog(
+      'Confirm Deletion',
+      `Are you sure you want to delete sample type "${name}"?`,
+      async () => {
+        try {
+          await sampleTypeService.delete(id)
+          await loadData()
+          showSuccessDialog(`Sample type "${name}" deleted successfully.`)
+        } catch (error: any) {
+          showErrorDialog(error.response?.data?.detail || 'Failed to delete sample type.')
+        } finally {
+          setDialogState({ open: false, type: null, title: '', message: '' })
+        }
+      }
+    )
+  }
+
   const handleEditTemplate = (template: EmailTemplate) => {
     setEditingTemplate(template)
     setTemplateFormData({
@@ -338,6 +550,8 @@ export function Settings() {
     { id: 'account', label: 'Account', icon: UserIcon },
     ...(canAccessAdminSettings ? [
       { id: 'organization', label: 'Organization', icon: Building2 },
+      { id: 'departments', label: 'Departments', icon: TestTube },
+      { id: 'sample-types', label: 'Sample Types', icon: Layers },
       { id: 'integrations', label: 'Integrations', icon: Plug },
       { id: 'users', label: 'User Management', icon: Users },
       { id: 'templates', label: 'Templates', icon: FileText },
@@ -860,6 +1074,412 @@ export function Settings() {
           </div>
         )}
 
+        {/* Departments Tab */}
+        {activeTab === 'departments' && canAccessAdminSettings && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Departments</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage departments and their test types
+                </p>
+              </div>
+              <Button onClick={() => handleOpenDepartmentModal()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Department
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {departments.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    No departments found. Create your first department to get started.
+                  </CardContent>
+                </Card>
+              ) : (
+                departments.map((dept) => (
+                  <Card 
+                    key={dept.id}
+                    className="cursor-pointer hover:border-primary/50 transition-colors"
+                    onClick={() => handleOpenDepartmentModal(dept)}
+                  >
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <CardTitle>{dept.name}</CardTitle>
+                          {dept.description && (
+                            <CardDescription className="mt-1">{dept.description}</CardDescription>
+                          )}
+                          {dept.test_types && dept.test_types.length > 0 && (
+                            <p className="text-sm text-muted-foreground mt-2">
+                              {dept.test_types.filter(tt => tt.is_active).length} active test type{dept.test_types.filter(tt => tt.is_active).length !== 1 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                        <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenDepartmentModal(dept)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Manage
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteDepartment(dept.id, dept.name)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))
+              )}
+            </div>
+
+            {/* Department Modal */}
+            <Dialog open={showDepartmentModal} onOpenChange={setShowDepartmentModal}>
+              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingDepartment ? 'Edit Department' : 'Create Department'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    {editingDepartment 
+                      ? 'Update department information and manage test types'
+                      : 'Create a new department and add test types to it'}
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSaveDepartment} className="space-y-6">
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="dept_name">Name *</Label>
+                      <Input
+                        id="dept_name"
+                        value={departmentFormData.name}
+                        onChange={(e) => setDepartmentFormData({ ...departmentFormData, name: e.target.value })}
+                        required
+                        className="mt-1.5"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="dept_description">Description</Label>
+                      <textarea
+                        id="dept_description"
+                        className="w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm mt-1.5"
+                        value={departmentFormData.description}
+                        onChange={(e) => setDepartmentFormData({ ...departmentFormData, description: e.target.value })}
+                        placeholder="Describe the department and its purpose..."
+                      />
+                    </div>
+                  </div>
+
+                  {/* Test Types Section - Only show when editing existing department */}
+                  {editingDepartment && (
+                    <div className="space-y-4 pt-4 border-t border-border">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <Label className="text-base font-semibold">Test Types</Label>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Manage test types for this department
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedDepartmentForTestType(editingDepartment)
+                            handleOpenTestTypeModal(editingDepartment)
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          Add Test Type
+                        </Button>
+                      </div>
+                      
+                      {editingDepartment.test_types && editingDepartment.test_types.length > 0 ? (
+                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          {editingDepartment.test_types.map((testType) => (
+                            <div
+                              key={testType.id}
+                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border border-border"
+                            >
+                              <div className="flex-1">
+                                <p className="font-medium text-sm">{testType.name}</p>
+                                {testType.description && (
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {testType.description}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedDepartmentForTestType(editingDepartment)
+                                    handleOpenTestTypeModal(editingDepartment, testType)
+                                  }}
+                                >
+                                  <Edit className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDeleteTestType(editingDepartment.id, testType.id, testType.name)}
+                                  className="text-destructive hover:text-destructive"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-muted/30 rounded-lg border border-border text-center">
+                          <p className="text-sm text-muted-foreground">
+                            No test types defined. Click "Add Test Type" to add test types to this department.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setShowDepartmentModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      <Save className="h-4 w-4 mr-2" />
+                      {editingDepartment ? 'Update Department' : 'Create Department'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+
+            {/* Test Type Modal */}
+            <Dialog open={showTestTypeModal} onOpenChange={setShowTestTypeModal}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingTestType ? 'Edit Test Type' : 'Create Test Type'}
+                    {selectedDepartmentForTestType && ` - ${selectedDepartmentForTestType.name}`}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSaveTestType} className="space-y-4">
+                  <div>
+                    <Label htmlFor="test_type_name">Name *</Label>
+                    <Input
+                      id="test_type_name"
+                      value={testTypeFormData.name}
+                      onChange={(e) => setTestTypeFormData({ ...testTypeFormData, name: e.target.value })}
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="test_type_description">Description</Label>
+                    <textarea
+                      id="test_type_description"
+                      className="w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm"
+                      value={testTypeFormData.description}
+                      onChange={(e) => setTestTypeFormData({ ...testTypeFormData, description: e.target.value })}
+                      placeholder="e.g., Concentration of Mg, ICP Elements, etc."
+                    />
+                  </div>
+                  {editingTestType && (
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="test_type_active"
+                        checked={editingTestType.is_active}
+                        onCheckedChange={async (checked) => {
+                          try {
+                            await departmentService.updateTestType(
+                              selectedDepartmentForTestType!.id,
+                              editingTestType.id,
+                              { is_active: checked }
+                            )
+                            await loadData()
+                            if (editingDepartment && selectedDepartmentForTestType!.id === editingDepartment.id) {
+                              const departments = await departmentService.getAll()
+                              const updated = departments.find(d => d.id === editingDepartment.id)
+                              if (updated) {
+                                setEditingDepartment(updated)
+                                setEditingTestType({ ...editingTestType, is_active: checked })
+                              }
+                            }
+                          } catch (error: any) {
+                            showErrorDialog(error.response?.data?.detail || 'Failed to update test type status.')
+                          }
+                        }}
+                      />
+                      <Label htmlFor="test_type_active" className="cursor-pointer">
+                        Active
+                      </Label>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setShowTestTypeModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      <Save className="h-4 w-4 mr-2" />
+                      {editingTestType ? 'Update' : 'Create'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+
+        {/* Sample Types Tab */}
+        {activeTab === 'sample-types' && canAccessAdminSettings && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-2xl font-bold text-foreground">Sample Types</h2>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Manage sample types that can be used when recording samples
+                </p>
+              </div>
+              <Button onClick={() => handleOpenSampleTypeModal()}>
+                <Plus className="h-4 w-4 mr-2" />
+                Add Sample Type
+              </Button>
+            </div>
+
+            <div className="space-y-4">
+              {sampleTypes.length === 0 ? (
+                <Card>
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    No sample types found. Create your first sample type to get started.
+                  </CardContent>
+                </Card>
+              ) : (
+                sampleTypes.map((sampleType) => (
+                  <Card 
+                    key={sampleType.id}
+                    className={`${!sampleType.is_active ? 'opacity-60' : ''}`}
+                  >
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-2">
+                            <CardTitle>{sampleType.name}</CardTitle>
+                            {!sampleType.is_active && (
+                              <span className="text-xs px-2 py-0.5 bg-yellow-500/20 text-yellow-500 rounded">
+                                Inactive
+                              </span>
+                            )}
+                          </div>
+                          {sampleType.description && (
+                            <CardDescription className="mt-1">{sampleType.description}</CardDescription>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleOpenSampleTypeModal(sampleType)}
+                          >
+                            <Edit className="h-4 w-4 mr-2" />
+                            Edit
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleDeleteSampleType(sampleType.id, sampleType.name)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                  </Card>
+                ))
+              )}
+            </div>
+
+            {/* Sample Type Modal */}
+            <Dialog open={showSampleTypeModal} onOpenChange={setShowSampleTypeModal}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingSampleType ? 'Edit Sample Type' : 'Create Sample Type'}
+                  </DialogTitle>
+                  <DialogDescription>
+                    Define sample types that can be selected when recording new samples
+                  </DialogDescription>
+                </DialogHeader>
+                <form onSubmit={handleSaveSampleType} className="space-y-4">
+                  <div>
+                    <Label htmlFor="sample_type_name">Name *</Label>
+                    <Input
+                      id="sample_type_name"
+                      value={sampleTypeFormData.name}
+                      onChange={(e) => setSampleTypeFormData({ ...sampleTypeFormData, name: e.target.value })}
+                      required
+                      className="mt-1.5"
+                      placeholder="e.g., Water, Soil, Air, Blood, etc."
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="sample_type_description">Description</Label>
+                    <textarea
+                      id="sample_type_description"
+                      className="w-full min-h-[100px] px-3 py-2 rounded-md border border-input bg-background text-foreground text-sm mt-1.5"
+                      value={sampleTypeFormData.description}
+                      onChange={(e) => setSampleTypeFormData({ ...sampleTypeFormData, description: e.target.value })}
+                      placeholder="Describe the sample type and any relevant information..."
+                    />
+                  </div>
+                  {editingSampleType && (
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="sample_type_active"
+                        checked={editingSampleType.is_active}
+                        onCheckedChange={async (checked) => {
+                          try {
+                            await sampleTypeService.update(editingSampleType.id, { is_active: checked })
+                            await loadData()
+                            setEditingSampleType({ ...editingSampleType, is_active: checked })
+                          } catch (error: any) {
+                            showErrorDialog(error.response?.data?.detail || 'Failed to update sample type status.')
+                          }
+                        }}
+                      />
+                      <Label htmlFor="sample_type_active" className="cursor-pointer">
+                        Active
+                      </Label>
+                    </div>
+                  )}
+                  <DialogFooter>
+                    <Button type="button" variant="outline" onClick={() => setShowSampleTypeModal(false)}>
+                      Cancel
+                    </Button>
+                    <Button type="submit">
+                      <Save className="h-4 w-4 mr-2" />
+                      {editingSampleType ? 'Update' : 'Create'}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </div>
+        )}
+
         {/* Templates Tab */}
         {activeTab === 'templates' && canAccessAdminSettings && (
           <div className="space-y-4">
@@ -1025,3 +1645,5 @@ export function Settings() {
     </DashboardLayout>
   )
 }
+
+export default Settings

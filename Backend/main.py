@@ -4,6 +4,10 @@ from fastapi.staticfiles import StaticFiles
 from routes import auth_router, users_router
 from routes.customers import router as customers_router
 from routes.projects import router as projects_router
+from routes.departments import router as departments_router
+from routes.sample_types import router as sample_types_router
+from routes.samples import router as samples_router
+from routes.result_entries import router as result_entries_router
 from routes.settings import router as settings_router
 from routes.organization import router as organization_router
 from routes.email_templates import router as email_templates_router
@@ -28,6 +32,10 @@ app.include_router(auth_router)
 app.include_router(users_router)
 app.include_router(customers_router)
 app.include_router(projects_router)
+app.include_router(departments_router)
+app.include_router(sample_types_router)
+app.include_router(samples_router)
+app.include_router(result_entries_router)
 app.include_router(settings_router)
 app.include_router(organization_router)
 app.include_router(email_templates_router)

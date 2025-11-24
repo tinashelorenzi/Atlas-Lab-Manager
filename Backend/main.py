@@ -8,9 +8,12 @@ from routes.departments import router as departments_router
 from routes.sample_types import router as sample_types_router
 from routes.samples import router as samples_router
 from routes.result_entries import router as result_entries_router
+from routes.reports import router as reports_router
 from routes.settings import router as settings_router
 from routes.organization import router as organization_router
 from routes.email_templates import router as email_templates_router
+from routes.analytics import router as analytics_router
+from middleware.logging_middleware import LoggingMiddleware
 
 app = FastAPI(
     title="Atlas Lab Manager API",
@@ -27,6 +30,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Request logging middleware (must be after CORS)
+app.add_middleware(LoggingMiddleware)
+
 # Include routers
 app.include_router(auth_router)
 app.include_router(users_router)
@@ -36,9 +42,11 @@ app.include_router(departments_router)
 app.include_router(sample_types_router)
 app.include_router(samples_router)
 app.include_router(result_entries_router)
+app.include_router(reports_router)
 app.include_router(settings_router)
 app.include_router(organization_router)
 app.include_router(email_templates_router)
+app.include_router(analytics_router)
 
 # Serve uploaded files
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")

@@ -18,8 +18,8 @@ export function Dashboard() {
 
       try {
         const user = await authService.getCurrentUser()
-        // Redirect super admin to their panel
-        if (user.user_type === 'super_administrator') {
+        // Redirect super admin to their panel (unless impersonating)
+        if (user.user_type === 'super_administrator' && !user.is_impersonated) {
           navigate('/super-admin')
         }
       } catch (error) {

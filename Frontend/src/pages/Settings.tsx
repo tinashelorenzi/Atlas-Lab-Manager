@@ -751,8 +751,22 @@ export function Settings() {
           <div className="space-y-4">
             <Card>
               <CardHeader>
-                <CardTitle>Cloudflare Turnstile</CardTitle>
-                <CardDescription>Configure Cloudflare Turnstile for bot protection</CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Cloudflare Turnstile</CardTitle>
+                    <CardDescription>Configure Cloudflare Turnstile for bot protection</CardDescription>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <Label htmlFor="turnstile_enabled" className="text-sm font-normal cursor-pointer">
+                      {integrationConfigs['cloudflare_turnstile_enabled'] ?? integrations.find(i => i.name === 'cloudflare_turnstile')?.enabled ?? false ? 'Enabled' : 'Disabled'}
+                    </Label>
+                    <Switch
+                      id="turnstile_enabled"
+                      checked={integrationConfigs['cloudflare_turnstile_enabled'] ?? integrations.find(i => i.name === 'cloudflare_turnstile')?.enabled ?? false}
+                      onCheckedChange={(checked) => handleToggleIntegration('cloudflare_turnstile', checked)}
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>

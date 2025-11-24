@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { NavLink } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -6,27 +7,50 @@ import {
   FolderKanban,
   FileText,
   FileBarChart,
+  FileCheck,
   Settings,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import logo from '@/assets/logo.svg'
+import { authService } from '@/services/authService'
+import type { User } from '@/types/user'
 
 interface SidebarProps {
   isOpen: boolean
   onClose?: () => void
 }
 
-const menuItems = [
-  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard' },
-  { icon: FlaskConical, label: 'Test Samples', path: '/dashboard/test-samples' },
-  { icon: Users, label: 'Customers', path: '/dashboard/customers' },
-  { icon: FolderKanban, label: 'Projects', path: '/dashboard/projects' },
-  { icon: FileText, label: 'Result Entries', path: '/dashboard/result-entries' },
-  { icon: FileBarChart, label: 'Reports', path: '/dashboard/reports' },
-  { icon: Settings, label: 'Settings', path: '/dashboard/settings' },
+const allMenuItems = [
+  { icon: LayoutDashboard, label: 'Dashboard', path: '/dashboard', roles: ['all'] },
+  { icon: FlaskConical, label: 'Test Samples', path: '/dashboard/test-samples', roles: ['all'] },
+  { icon: Users, label: 'Customers', path: '/dashboard/customers', roles: ['all'] },
+  { icon: FolderKanban, label: 'Projects', path: '/dashboard/projects', roles: ['all'] },
+  { icon: FileText, label: 'Result Entries', path: '/dashboard/result-entries', roles: ['all'] },
+  { icon: FileCheck, label: 'Amended Reports', path: '/dashboard/proposed-reports', roles: ['lab_administrator', 'lab_manager'] },
+  { icon: FileBarChart, label: 'Reports', path: '/dashboard/reports', roles: ['all'] },
+  { icon: Settings, label: 'Settings', path: '/dashboard/settings', roles: ['all'] },
 ]
 
 export function Sidebar({ isOpen, onClose }: SidebarProps) {
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const user = await authService.getCurrentUser()
+        setCurrentUser(user)
+      } catch (error) {
+        // Handle error silently
+      }
+    }
+    fetchUser()
+  }, [])
+
+  const menuItems = allMenuItems.filter(item => {
+    if (item.roles.includes('all')) return true
+    if (!currentUser) return false
+    return item.roles.includes(currentUser.user_type)
+  })
   return (
     <>
       {isOpen && onClose && (

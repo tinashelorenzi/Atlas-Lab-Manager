@@ -7,5 +7,7 @@ export interface User {
   needs_password_reset: boolean
   created_at: string
   updated_at: string
+  is_impersonated?: boolean
+  impersonated_by?: string | null
 }
 

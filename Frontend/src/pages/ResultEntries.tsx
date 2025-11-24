@@ -14,9 +14,10 @@ import {
 } from '@/components/ui/dialog'
 import { resultEntryService, type ResultEntry, type ResultValue, type ResultValueCreate } from '@/services/resultEntryService'
 import { sampleService, type Sample } from '@/services/sampleService'
+import { reportService } from '@/services/reportService'
 import { authService } from '@/services/authService'
 import type { User } from '@/types/user'
-import { Search, Plus, X, Edit, Trash2, Save, CheckCircle, FileText, FlaskConical, AlertCircle, Lock } from 'lucide-react'
+import { Search, Plus, X, Edit, Trash2, Save, CheckCircle, FileText, FlaskConical, AlertCircle, Lock, FileCheck } from 'lucide-react'
 import { LoadingMeter } from '@/components/ui/loading'
 
 export function ResultEntries() {
@@ -49,6 +50,7 @@ export function ResultEntries() {
   
   const [loading, setLoading] = useState(false)
   const [committing, setCommitting] = useState(false)
+  const [generatingReport, setGeneratingReport] = useState(false)
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -405,15 +407,39 @@ export function ResultEntries() {
                       <> | Committed by: {selectedResultEntry.committed_by_name}</>
                     )}
                   </div>
-                  {!selectedResultEntry.is_committed && (
-                    <Button
-                      onClick={handleCommit}
-                      disabled={committing || selectedResultEntry.result_values.length === 0}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      {committing ? <LoadingMeter /> : <><CheckCircle className="h-4 w-4 mr-2" />Commit Results</>}
-                    </Button>
-                  )}
+                  <div className="flex gap-2">
+                    {!selectedResultEntry.is_committed && (
+                      <Button
+                        onClick={handleCommit}
+                        disabled={committing || selectedResultEntry.result_values.length === 0}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        {committing ? <LoadingMeter /> : <><CheckCircle className="h-4 w-4 mr-2" />Commit Results</>}
+                      </Button>
+                    )}
+                    {selectedResultEntry.is_committed && (
+                      <Button
+                        onClick={async () => {
+                          if (!selectedResultEntry) return
+                          try {
+                            setGeneratingReport(true)
+                            await reportService.create({ result_entry_id: selectedResultEntry.id })
+                            alert('Report generated successfully! You can view it in the Amended Reports page.')
+                          } catch (error: any) {
+                            console.error('Failed to generate report:', error)
+                            alert(error.response?.data?.detail || 'Failed to generate report')
+                          } finally {
+                            setGeneratingReport(false)
+                          }
+                        }}
+                        disabled={generatingReport}
+                        variant="outline"
+                        className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                      >
+                        {generatingReport ? <LoadingMeter /> : <><FileCheck className="h-4 w-4 mr-2" />Generate Report</>}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 <div className="border-t border-border pt-4">

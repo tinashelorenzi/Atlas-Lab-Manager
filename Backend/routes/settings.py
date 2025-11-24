@@ -90,6 +90,25 @@ async def get_integrations(
         })
     return result
 
+@router.get("/integrations/public/turnstile")
+async def get_turnstile_public_config(db: Session = Depends(get_db)):
+    """Public endpoint to get Turnstile site key (for login page)"""
+    turnstile = db.query(Integration).filter(Integration.name == "cloudflare_turnstile").first()
+    if not turnstile or not turnstile.enabled:
+        return {"enabled": False, "site_key": None}
+    
+    config = {}
+    if turnstile.config:
+        try:
+            config = json.loads(turnstile.config) if isinstance(turnstile.config, str) else turnstile.config
+        except (json.JSONDecodeError, TypeError):
+            pass
+    
+    return {
+        "enabled": True,
+        "site_key": config.get("site_key", "")
+    }
+
 @router.get("/integrations/{integration_name}", response_model=IntegrationResponse)
 async def get_integration(
     integration_name: str,

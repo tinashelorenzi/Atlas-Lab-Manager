@@ -14,44 +14,83 @@ import {
 import { reportService, type Report, ReportStatus } from '@/services/reportService'
 import { authService } from '@/services/authService'
 import type { User } from '@/types/user'
-import { Eye, Download, ExternalLink, FileText, Mail } from 'lucide-react'
+import { FileCheck, Eye, CheckCircle, X, ExternalLink, FileText } from 'lucide-react'
 import { LoadingMeter } from '@/components/ui/loading'
 
-export function Reports() {
+export function ProposedReports() {
   const navigate = useNavigate()
+  const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [reports, setReports] = useState<Report[]>([])
   const [loading, setLoading] = useState(false)
-  const [currentUser, setCurrentUser] = useState<User | null>(null)
+  const [validating, setValidating] = useState<number | null>(null)
   const [selectedReport, setSelectedReport] = useState<Report | null>(null)
   const [showViewModal, setShowViewModal] = useState(false)
+  const [showValidateModal, setShowValidateModal] = useState(false)
   const [documentHtml, setDocumentHtml] = useState<string | null>(null)
   const [loadingDocument, setLoadingDocument] = useState(false)
-  const [sendingEmail, setSendingEmail] = useState<number | null>(null)
 
   useEffect(() => {
     const fetchUser = async () => {
       try {
         const user = await authService.getCurrentUser()
         setCurrentUser(user)
+        // Check if user is manager or admin
+        if (user.user_type !== 'lab_administrator' && user.user_type !== 'lab_manager') {
+          navigate('/dashboard')
+          return
+        }
       } catch (error) {
         console.error('Failed to fetch user:', error)
+        navigate('/dashboard')
       }
     }
     fetchUser()
     loadReports()
-  }, [])
-
-  const isManagerOrAdmin = currentUser?.user_type === 'lab_administrator' || currentUser?.user_type === 'lab_manager'
+  }, [navigate])
 
   const loadReports = async () => {
     try {
       setLoading(true)
-      const data = await reportService.getFinalized()
+      const data = await reportService.getProposed()
       setReports(data)
     } catch (error) {
-      console.error('Failed to load finalized reports:', error)
+      console.error('Failed to load proposed reports:', error)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleValidate = async () => {
+    if (!selectedReport) return
+    try {
+      setValidating(selectedReport.id)
+      await reportService.validate(selectedReport.id)
+      await loadReports()
+      setShowValidateModal(false)
+      setSelectedReport(null)
+      alert('Report validated and finalized successfully! It is now available in the Reports page.')
+    } catch (error: any) {
+      console.error('Failed to validate report:', error)
+      alert(error.response?.data?.detail || 'Failed to validate report')
+    } finally {
+      setValidating(null)
+    }
+  }
+
+  const handleFinalize = async (report: Report) => {
+    if (!confirm('Are you sure you want to finalize this report? This action cannot be undone.')) {
+      return
+    }
+    try {
+      setValidating(report.id)
+      await reportService.finalize(report.id)
+      await loadReports()
+      alert('Report finalized successfully!')
+    } catch (error: any) {
+      console.error('Failed to finalize report:', error)
+      alert(error.response?.data?.detail || 'Failed to finalize report')
+    } finally {
+      setValidating(null)
     }
   }
 
@@ -67,40 +106,6 @@ export function Reports() {
       alert('Failed to load report document')
     } finally {
       setLoadingDocument(false)
-    }
-  }
-
-  const handleDownload = async (report: Report) => {
-    try {
-      const pdfBlob = await reportService.getPdf(report.id)
-      const downloadUrl = window.URL.createObjectURL(pdfBlob)
-      const link = document.createElement('a')
-      link.href = downloadUrl
-      link.download = `${report.report_number}.pdf`
-      document.body.appendChild(link)
-      link.click()
-      document.body.removeChild(link)
-      window.URL.revokeObjectURL(downloadUrl)
-    } catch (error) {
-      console.error('Failed to download report:', error)
-      alert('Failed to download report')
-    }
-  }
-
-  const handleSendToCustomer = async (report: Report) => {
-    if (!confirm(`Send report ${report.report_number} to customer ${report.customer_name}?`)) {
-      return
-    }
-    try {
-      setSendingEmail(report.id)
-      await reportService.sendToCustomer(report.id)
-      await loadReports()
-      alert('Report sent to customer successfully!')
-    } catch (error: any) {
-      console.error('Failed to send report:', error)
-      alert(error.response?.data?.detail || 'Failed to send report to customer')
-    } finally {
-      setSendingEmail(null)
     }
   }
 
@@ -127,17 +132,17 @@ export function Reports() {
     <DashboardLayout>
       <div className="space-y-6">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Reports</h1>
+          <h1 className="text-3xl font-bold text-foreground">Amended Reports</h1>
           <p className="text-muted-foreground mt-1.5 text-sm">
-            View and download finalized laboratory reports
+            Review and validate amended reports before finalization
           </p>
         </div>
 
         {reports.length === 0 ? (
           <Card>
             <CardContent className="py-12 text-center">
-              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No finalized reports found</p>
+              <FileCheck className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <p className="text-muted-foreground">No amended reports found</p>
             </CardContent>
           </Card>
         ) : (
@@ -150,7 +155,7 @@ export function Reports() {
                       <div className="flex items-center gap-3 mb-2">
                         <h3 className="text-lg font-semibold">{report.report_number}</h3>
                         <span className={`text-xs px-2 py-1 rounded ${getStatusBadge(report.status)}`}>
-                          {report.status}
+                          {report.status === ReportStatus.PROPOSED ? 'amended' : report.status}
                         </span>
                       </div>
                       <div className="space-y-1 text-sm text-muted-foreground">
@@ -159,21 +164,6 @@ export function Reports() {
                         <div>Generated: <span className="font-medium text-foreground">{new Date(report.generated_at).toLocaleString()}</span> by {report.generated_by_name}</div>
                         {report.validated_at && (
                           <div>Validated: <span className="font-medium text-foreground">{new Date(report.validated_at).toLocaleString()}</span> by {report.validated_by_name}</div>
-                        )}
-                        {report.finalized_at && (
-                          <div>Finalized: <span className="font-medium text-foreground">{new Date(report.finalized_at).toLocaleString()}</span> by {report.finalized_by_name}</div>
-                        )}
-                        {report.fingerprint && (
-                          <div className="mt-2 pt-2 border-t border-border">
-                            <div className="text-xs font-mono text-muted-foreground break-all">
-                              Fingerprint: {report.fingerprint}
-                            </div>
-                          </div>
-                        )}
-                        {report.status === ReportStatus.VALIDATED && !report.finalized_at && (
-                          <div className="mt-2 pt-2 border-t border-border">
-                            <span className="text-xs text-yellow-600 bg-yellow-500/20 px-2 py-1 rounded">Awaiting Finalization</span>
-                          </div>
                         )}
                       </div>
                     </div>
@@ -184,15 +174,7 @@ export function Reports() {
                         onClick={() => handleViewDocument(report)}
                       >
                         <Eye className="h-4 w-4 mr-2" />
-                        View
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDownload(report)}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        Download
+                        View Document
                       </Button>
                       <Button
                         variant="outline"
@@ -200,47 +182,26 @@ export function Reports() {
                         onClick={() => navigate(`/dashboard/result-entries?sample=${report.sample_id_code}`)}
                       >
                         <ExternalLink className="h-4 w-4 mr-2" />
-                        Result Sheet
+                        Go to Result Sheet
                       </Button>
-                      {report.status === ReportStatus.FINALIZED && isManagerOrAdmin && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleSendToCustomer(report)}
-                          disabled={sendingEmail === report.id}
-                          className="border-green-500 text-green-600 hover:bg-green-50"
-                        >
-                          {sendingEmail === report.id ? (
-                            <LoadingMeter />
-                          ) : (
-                            <>
-                              <Mail className="h-4 w-4 mr-2" />
-                              Send to Customer
-                            </>
-                          )}
-                        </Button>
-                      )}
-                      {report.status === ReportStatus.VALIDATED && isManagerOrAdmin && (
+                      {report.status === ReportStatus.PROPOSED && (
                         <Button
                           variant="default"
                           size="sm"
-                          onClick={async () => {
-                            if (!confirm('Are you sure you want to finalize this report? This action cannot be undone.')) {
-                              return
-                            }
-                            try {
-                              await reportService.finalize(report.id)
-                              await loadReports()
-                              alert('Report finalized successfully!')
-                            } catch (error: any) {
-                              console.error('Failed to finalize report:', error)
-                              alert(error.response?.data?.detail || 'Failed to finalize report')
-                            }
+                          onClick={() => {
+                            setSelectedReport(report)
+                            setShowValidateModal(true)
                           }}
-                          className="bg-green-600 hover:bg-green-700"
+                          disabled={validating === report.id}
                         >
-                          <FileText className="h-4 w-4 mr-2" />
-                          Finalize
+                          {validating === report.id ? (
+                            <LoadingMeter />
+                          ) : (
+                            <>
+                              <CheckCircle className="h-4 w-4 mr-2" />
+                              Validate & Finalize
+                            </>
+                          )}
                         </Button>
                       )}
                     </div>
@@ -301,9 +262,37 @@ export function Reports() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Validate Confirmation Modal */}
+        <Dialog open={showValidateModal} onOpenChange={setShowValidateModal}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Validate & Finalize Report</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to validate and finalize this report? Once finalized, it will be available in the Reports page and cannot be modified.
+              </DialogDescription>
+            </DialogHeader>
+            {selectedReport && (
+              <div className="space-y-2 text-sm">
+                <div><strong>Report Number:</strong> {selectedReport.report_number}</div>
+                <div><strong>Sample:</strong> {selectedReport.sample_id_code}</div>
+                <div><strong>Customer:</strong> {selectedReport.customer_name}</div>
+              </div>
+            )}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setShowValidateModal(false)}>
+                Cancel
+              </Button>
+              <Button onClick={handleValidate} disabled={validating !== null}>
+                {validating ? <LoadingMeter /> : <><CheckCircle className="h-4 w-4 mr-2" />Validate Report</>}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </DashboardLayout>
   )
 }
 
-export default Reports
+export default ProposedReports
+

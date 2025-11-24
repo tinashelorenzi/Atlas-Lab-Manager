@@ -4,6 +4,7 @@ import type { User } from '@/types/user'
 export interface LoginCredentials {
   username: string
   password: string
+  turnstile_token?: string | null
 }
 
 export interface LoginResponse {
@@ -17,6 +18,9 @@ export const authService = {
     const formData = new FormData()
     formData.append('username', credentials.username)
     formData.append('password', credentials.password)
+    if (credentials.turnstile_token) {
+      formData.append('turnstile_token', credentials.turnstile_token)
+    }
     
     const response = await api.post<LoginResponse>('/api/auth/login', formData, {
       headers: {

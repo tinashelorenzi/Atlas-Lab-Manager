@@ -10,10 +10,15 @@ from .sample_type import SampleType
 from .sample import Sample, sample_departments, sample_tests
 from .sample_activity import SampleActivity
 from .result_entry import ResultEntry, ResultValue
+from .report import Report, ReportStatus
+from .login_history import LoginHistory
+from .request_log import RequestLog, HTTPMethod
+from .user_impersonation import UserImpersonation
 
 __all__ = [
-    "User", "UserType", "Customer", "Organization", "Integration", 
-    "EmailTemplate", "Project", "Department", "TestType", "SampleType", 
+    "User", "UserType", "Customer", "Organization", "Integration",
+    "EmailTemplate", "Project", "Department", "TestType", "SampleType",
     "Sample", "sample_departments", "sample_tests", "SampleActivity",
-    "ResultEntry", "ResultValue"
+    "ResultEntry", "ResultValue", "Report", "ReportStatus",
+    "LoginHistory", "RequestLog", "HTTPMethod", "UserImpersonation"
 ]

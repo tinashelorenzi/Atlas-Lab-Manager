@@ -1,10 +1,12 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { authService } from '@/services/authService'
+import { settingsService } from '@/services/settingsService'
+import { Turnstile } from '@marsidev/react-turnstile'
 import { LogIn, Loader2 } from 'lucide-react'
 import logo from '@/assets/logo.svg'
 
@@ -14,17 +16,51 @@ export function LoginPage() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [shake, setShake] = useState(false)
+  const [turnstileEnabled, setTurnstileEnabled] = useState(false)
+  const [turnstileSiteKey, setTurnstileSiteKey] = useState('')
+  const [turnstileToken, setTurnstileToken] = useState<string | null>(null)
+  const turnstileRef = useRef<any>(null)
   const navigate = useNavigate()
+
+  useEffect(() => {
+    // Fetch Turnstile configuration from public endpoint
+    const loadTurnstileConfig = async () => {
+      try {
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
+        const response = await fetch(`${API_BASE_URL}/api/settings/integrations/public/turnstile`)
+        if (response.ok) {
+          const data = await response.json()
+          if (data.enabled && data.site_key) {
+            setTurnstileEnabled(true)
+            setTurnstileSiteKey(data.site_key)
+          }
+        }
+      } catch (error) {
+        console.error('Failed to load Turnstile config:', error)
+      }
+    }
+    loadTurnstileConfig()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
+    
+    // Check Turnstile if enabled
+    if (turnstileEnabled && !turnstileToken) {
+      setError('Please complete the security verification')
+      setShake(true)
+      setTimeout(() => setShake(false), 500)
+      return
+    }
+    
     setIsLoading(true)
     
     try {
       const loginResponse = await authService.login({
         username: email,
         password: password,
+        turnstile_token: turnstileToken,
       })
       
       // Check if password reset is required
@@ -47,6 +83,11 @@ export function LoginPage() {
       // Trigger shake animation
       setShake(true)
       setTimeout(() => setShake(false), 500)
+      // Reset Turnstile on error
+      if (turnstileRef.current) {
+        turnstileRef.current.reset()
+        setTurnstileToken(null)
+      }
     } finally {
       setIsLoading(false)
     }
@@ -101,10 +142,26 @@ export function LoginPage() {
                 autoComplete="current-password"
               />
             </div>
+            {turnstileEnabled && turnstileSiteKey && (
+              <div className="flex justify-center">
+                <Turnstile
+                  ref={turnstileRef}
+                  siteKey={turnstileSiteKey}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  onError={() => {
+                    setTurnstileToken(null)
+                    setError('Security verification failed. Please try again.')
+                  }}
+                  onExpire={() => {
+                    setTurnstileToken(null)
+                  }}
+                />
+              </div>
+            )}
             <Button
               type="submit"
               className="w-full"
-              disabled={isLoading}
+              disabled={isLoading || (turnstileEnabled && !turnstileToken)}
             >
               {isLoading ? (
                 <>

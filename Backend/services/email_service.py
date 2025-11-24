@@ -2,6 +2,8 @@ import smtplib
 import json
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.base import MIMEBase
+from email import encoders
 from sqlalchemy.orm import Session
 from models.integration import Integration
 
@@ -587,3 +589,267 @@ def get_default_sample_collection_template(
     </html>
     """
 
+
+def send_report_email(
+    to_email: str,
+    customer_name: str,
+    sample_id: str,
+    report_number: str,
+    view_key: str,
+    view_url: str,
+    pdf_bytes: bytes,
+    report_filename: str,
+    org_name: str,
+    db: Session
+) -> bool:
+    """Send report email to customer with PDF attachment and view key"""
+    smtp_config = get_smtp_config(db)
+    if not smtp_config:
+        print("SMTP not configured or disabled")
+        return False
+    
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = smtp_config.get('from_email', smtp_config.get('username', 'noreply@atlaslab.com'))
+        msg['To'] = to_email
+        msg['Subject'] = f"Test Results Report - {report_number}"
+        
+        # Email body
+        body = get_default_report_email_template(
+            customer_name, sample_id, report_number, view_key, view_url, org_name
+        )
+        msg.attach(MIMEText(body, 'html'))
+        
+        # Attach PDF
+        part = MIMEBase('application', 'pdf')
+        part.set_payload(pdf_bytes)
+        encoders.encode_base64(part)
+        part.add_header(
+            'Content-Disposition',
+            f'attachment; filename= {report_filename}'
+        )
+        msg.attach(part)
+        
+        host = smtp_config.get('host', 'localhost')
+        port = int(smtp_config.get('port', 1025))
+        
+        use_tls_raw = smtp_config.get('use_tls', False)
+        use_ssl_raw = smtp_config.get('use_ssl', False)
+        
+        if use_tls_raw is None:
+            use_tls = False
+        elif isinstance(use_tls_raw, bool):
+            use_tls = use_tls_raw
+        else:
+            use_tls = str(use_tls_raw).lower() in ('true', '1', 'yes')
+        
+        if use_ssl_raw is None:
+            use_ssl = False
+        elif isinstance(use_ssl_raw, bool):
+            use_ssl = use_ssl_raw
+        else:
+            use_ssl = str(use_ssl_raw).lower() in ('true', '1', 'yes')
+        
+        username = smtp_config.get('username', '')
+        password = smtp_config.get('password', '')
+        needs_auth = bool(username and password)
+        
+        if use_ssl:
+            server = smtplib.SMTP_SSL(host, port)
+        else:
+            server = smtplib.SMTP(host, port)
+            if use_tls:
+                server.starttls()
+        
+        if needs_auth:
+            server.login(username, password)
+        
+        server.send_message(msg)
+        server.quit()
+        
+        print(f"Report email sent successfully to {to_email}")
+        return True
+    except Exception as e:
+        print(f"Failed to send report email: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def get_default_report_email_template(
+    customer_name: str,
+    sample_id: str,
+    report_number: str,
+    view_key: str,
+    view_url: str,
+    org_name: str
+) -> str:
+    """Default styled template for report email"""
+    return f"""
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>
+            body {{
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+                line-height: 1.6;
+                color: #333;
+                max-width: 600px;
+                margin: 0 auto;
+                padding: 20px;
+                background-color: #f5f5f5;
+            }}
+            .container {{
+                background-color: #ffffff;
+                border-radius: 8px;
+                padding: 40px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            }}
+            .header {{
+                text-align: center;
+                margin-bottom: 30px;
+                padding-bottom: 20px;
+                border-bottom: 2px solid #3b82f6;
+            }}
+            .header h1 {{
+                color: #1e40af;
+                margin: 0;
+                font-size: 28px;
+            }}
+            .content {{
+                margin: 30px 0;
+            }}
+            .report-info {{
+                background-color: #f8fafc;
+                border-left: 4px solid #3b82f6;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 4px;
+            }}
+            .info-row {{
+                display: flex;
+                justify-content: space-between;
+                padding: 8px 0;
+                border-bottom: 1px solid #e5e7eb;
+            }}
+            .info-row:last-child {{
+                border-bottom: none;
+            }}
+            .info-label {{
+                font-weight: 600;
+                color: #4b5563;
+            }}
+            .info-value {{
+                color: #1f2937;
+                font-family: 'Courier New', monospace;
+            }}
+            .view-key-box {{
+                background-color: #eff6ff;
+                border: 2px dashed #3b82f6;
+                padding: 20px;
+                margin: 20px 0;
+                border-radius: 6px;
+                text-align: center;
+            }}
+            .view-key {{
+                font-size: 18px;
+                font-weight: bold;
+                color: #1e40af;
+                font-family: 'Courier New', monospace;
+                letter-spacing: 2px;
+                word-break: break-all;
+            }}
+            .button {{
+                display: inline-block;
+                background-color: #3b82f6;
+                color: #ffffff;
+                padding: 12px 24px;
+                text-decoration: none;
+                border-radius: 6px;
+                margin: 20px 0;
+                font-weight: 600;
+            }}
+            .button:hover {{
+                background-color: #2563eb;
+            }}
+            .footer {{
+                margin-top: 40px;
+                padding-top: 20px;
+                border-top: 1px solid #e5e7eb;
+                font-size: 14px;
+                color: #6b7280;
+                text-align: center;
+            }}
+            .note {{
+                background-color: #fef3c7;
+                border-left: 4px solid #f59e0b;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+                color: #92400e;
+            }}
+            .online-access {{
+                background-color: #ecfdf5;
+                border-left: 4px solid #10b981;
+                padding: 15px;
+                margin: 20px 0;
+                border-radius: 4px;
+                color: #065f46;
+            }}
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="header">
+                <h1>Test Results Report Ready</h1>
+            </div>
+            <div class="content">
+                <p>Hello <strong>{customer_name}</strong>,</p>
+                
+                <p>Your test results report is ready and has been attached to this email as a PDF file. You can also access your report securely online using the details below:</p>
+                
+                <div class="report-info">
+                    <div class="info-row">
+                        <span class="info-label">Sample ID:</span>
+                        <span class="info-value">{sample_id}</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">Report Number:</span>
+                        <span class="info-value">{report_number}</span>
+                    </div>
+                </div>
+                
+                <div class="online-access">
+                    <strong>🔒 Secure Online Access:</strong>
+                    <p style="margin: 10px 0 0 0;">Your report is also available online for secure viewing and downloading. Use the credentials below to access it:</p>
+                </div>
+                
+                <div class="view-key-box">
+                    <p style="margin: 0 0 10px 0; color: #6b7280; font-weight: 500;">Your View Key:</p>
+                    <div class="view-key">{view_key}</div>
+                </div>
+                
+                <div class="note">
+                    <strong>📋 Important:</strong> Please keep your Sample ID and View Key safe. You will need both to access your report online securely.
+                </div>
+                
+                <p>You can view and download your report online using the button below, or use the attached PDF file.</p>
+                
+                <div style="text-align: center;">
+                    <a href="{view_url}" class="button">View Report Online</a>
+                </div>
+                
+                <p style="margin-top: 20px;"><strong>Note:</strong> The PDF attachment is provided for your convenience. For the most up-to-date version and secure access, please use the online portal.</p>
+                
+                <p>If you have any questions or need assistance, please don't hesitate to contact us.</p>
+                
+                <p>Thank you for choosing <strong>{org_name}</strong>!</p>
+            </div>
+            <div class="footer">
+                <p>This is an automated message from {org_name}. Please do not reply to this email.</p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """

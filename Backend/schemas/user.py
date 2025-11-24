@@ -21,6 +21,8 @@ class UserResponse(UserBase):
     needs_password_reset: bool
     created_at: datetime
     updated_at: datetime
+    is_impersonated: bool = False  # Whether this user is being impersonated
+    impersonated_by: str | None = None  # Email of the super admin doing the impersonation
     
     class Config:
         from_attributes = True

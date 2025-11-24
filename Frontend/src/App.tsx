@@ -7,14 +7,16 @@ import { TestSamples } from './pages/TestSamples'
 import { Customers } from './pages/Customers'
 import { Projects } from './pages/Projects'
 import { ResultEntries } from './pages/ResultEntries'
+import { ProposedReports } from './pages/ProposedReports'
 import { Reports } from './pages/Reports'
+import { ViewReport } from './pages/ViewReport'
 import { Settings } from './pages/Settings'
 import { SuperAdminPanel } from './pages/SuperAdminPanel'
 import { ErrorPage } from './pages/ErrorPage'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import './App.css'
 
-function App() {
+export default function App() {
   return (
     <Routes>
         <Route path="/" element={<LoginPage />} />
@@ -68,12 +70,24 @@ function App() {
           }
         />
         <Route
+          path="/dashboard/proposed-reports"
+          element={
+            <ProtectedRoute>
+              <ProposedReports />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/dashboard/reports"
           element={
             <ProtectedRoute>
               <Reports />
             </ProtectedRoute>
           }
+        />
+        <Route
+          path="/view-report"
+          element={<ViewReport />}
         />
         <Route
           path="/dashboard/settings"
@@ -84,7 +98,7 @@ function App() {
           }
         />
         <Route
-          path="/super-admin"
+          path="/super-admin/*"
           element={
             <ProtectedRoute>
               <SuperAdminPanel />
@@ -95,5 +109,3 @@ function App() {
       </Routes>
   )
 }
-
-export default App
